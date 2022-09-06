@@ -1,0 +1,53 @@
+
+import "hashes/sha256/shaRound" as shaRound;
+import "utils/pack/u32/pack128" as pack128;
+//import "./verifySignature" as verifySignature;
+import "./keypairVerifierEddsa" as keypairVerifierEddsa;
+
+// Initial values, FIPS 180-3, section 5.3.3
+// https://csrc.nist.gov/csrc/media/publications/fips/180/3/archive/2008-10-31/documents/fips180-3_final.pdf
+const u32[8] IV = [
+    0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+    0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19
+];
+
+
+// sha256 expects 192 input elements (=12*16)
+def sha256(u32[12][16] a) -> field[2] {
+    u32[8] mut current = IV;
+
+    for u32 i in 0..12 {
+        current = shaRound(a[i], current);
+    }
+    
+    field result1 = pack128(current[0..4]);
+    field result2 = pack128(current[4..8]);
+
+    field[2] result = [result1, result2];
+
+    return result;
+}
+
+
+def main(private u32[12][16] preImage, private field mechanicSignature, field pubIPFS_CID_A, field pubIPFS_CID_B) -> field {   // 32*12*16 bits = 6.144 bits -> 768 bytes
+    
+    // hash the document
+    field[2] docHash = sha256(preImage); 
+
+    // compare whether document hash equals corresponding IPFS-CID
+    assert(pubIPFS_CID_A == docHash[0]);
+    assert(pubIPFS_CID_B == docHash[1]);
+
+    // verify mechanic signature
+    field signatureVerified = keypairVerifierEddsa(mechanicSignature);
+
+    return signatureVerified;
+
+}
+
+
+/*
+zokrates compute-witness -a 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5 123456789 241485335102976961321093870028189579906 251528946703789226554325548734390842919
+
+
+*/
