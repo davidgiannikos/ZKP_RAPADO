@@ -1,0 +1,133 @@
+import "hashes/sha256/sha256";
+import "utils/casts/u8_to_bits";
+import "utils/casts/u32_to_bits";
+import "utils/casts/u32_from_bits";
+
+ 
+// length / 512 + 1 == M
+// (M-1)*512 = L + 64 + 1
+
+// M = (L + 64 + 1) / 512 + 1
+// L = (M-1)*512 - 65
+
+
+// A padding function that takes a bool[L] array as input and pads it to 512-bit blocks
+def pad<L, M>(bool[L] m) -> u32[M][16] {
+    u32 length = L + 64 + 1;
+    assert(length / 512 + 1 == M);
+
+    u32 r = length % 512;
+    u32 k = 512 - r;
+    bool[M * 512] result_in_bits = [...m, true, ...[false; k + 32], ...u32_to_bits(L)];
+    u32[M][16] mut result = [[0; 16]; M];
+
+    for u32 i in 0..M {
+        for u32 j in 0..16 {
+            u32 start = i * 512 + j * 32;
+            u32 end = start + 32;
+            result[i][j] = u32_from_bits(result_in_bits[start..end]);
+        }
+    }
+    return result;
+}
+
+// A function that takes a bool[N] array as input, pads it,
+// and returns the sha256 output as a u32[8]
+def sha256Padded<N>(bool[N] input) -> u32[8] {
+    u32 block_count = (N + 64 + 1) / 512 + 1;
+    u32[block_count][16] padded = pad(input);
+    return sha256(padded);
+}
+
+// A function that takes a u8[N] array as input, pads it,
+// and returns the sha256 output as a u32[8]
+def main(u8[800] input) -> u32[8] {
+    u32 L = 800 * 8;
+    bool[L] mut input_bits = [false; L];
+
+    for u32 i in 0..800 {
+        bool[8] bits = u8_to_bits(input[i]);
+        for u32 j in 0..8 {
+            input_bits[i * 8 + j] = bits[j];
+        }
+    }
+
+    return sha256Padded(input_bits);
+}
+
+
+/*
+
+zokrates compute-witness -a 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5
+
+--> output 
+        ~out_7 2740172745
+        ~out_6 3939449584
+        ~out_5 1901918027
+        ~out_4 1163756457
+        ~out_3 405554581
+        ~out_2 3165635013
+        ~out_1 2295172284
+        ~out_0 3764772195
+        
+
+--> 
+        11100000011001011101110101100011 
+        10001000110011011000110010111100 
+        10111100101011111100000111000101 
+        00011000001011000100010110010101 
+        01000101010111011000001110101001 
+        01110001010111001111011101001011 
+        11101010110011110011101011110000 
+        10100011010100111011011111001001
+--> hex calculated in python: '0xe065dd6388cd8cbcbcafc1c5182c4595455d83a9715cf74beacf3af0a353b7c9'
+
+--> sha256 hash digest from: 
+    let buffer = new ArrayBuffer(20);
+    let view = new DataView(buffer);
+    view.setInt8(19, 5);
+
+    --> e065dd6388cd8cbcbcafc1c5182c4595455d83a9715cf74beacf3af0a353b7c9
+
+check:
+e065dd6388cd8cbcbcafc1c5182c4595455d83a9715cf74beacf3af0a353b7c9
+e065dd6388cd8cbcbcafc1c5182c4595455d83a9715cf74beacf3af0a353b7c9
+
+===========================================================================================================
+
+zokrates compute-witness -a 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5
+
+--> output: 
+        ~out_7 3727103767
+        ~out_6 2107048462
+        ~out_5 1034777862
+        ~out_4 66883612
+        ~out_3 4157050362
+        ~out_2 1769680125
+        ~out_1 1514644219
+        ~out_0 1752934836
+
+--> output in binary encoding:
+        01101000011110111010100110110100
+        01011010010001111010001011111011
+        01101001011110110010110011111101
+        11110111110001111000110111111010
+        00000011111111001001000000011100
+        00111101101011010111010100000110
+        01111101100101110000001000001110
+        11011110001001110001011100010111
+
+--> output as full integer: 47259029699058029213924391916370692618081298536306620603899571304718875957015
+--> output as hex with python: '0x687ba9b45a47a2fb697b2cfdf7c78dfa03fc901c3dad75067d97020ede271717'
+
+--> sha256 hash digest from: 
+    let buffer = new ArrayBuffer(800);
+    let view = new DataView(buffer);
+    view.setInt8(799, 5);
+
+    --> 687ba9b45a47a2fb697b2cfdf7c78dfa03fc901c3dad75067d97020ede271717
+
+check:
+0x687ba9b45a47a2fb697b2cfdf7c78dfa03fc901c3dad75067d97020ede271717
+  687ba9b45a47a2fb697b2cfdf7c78dfa03fc901c3dad75067d97020ede271717  
+*/
