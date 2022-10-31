@@ -1,18 +1,21 @@
 import "utils/pack/bool/nonStrictUnpack256" as unpack256;
+import "utils/pack/bool/unpack128" as unpack128;
 import "ecc/edwardsScalarMult" as multiply;
 from "ecc/babyjubjubParams" import BabyJubJubParams;
 import "ecc/babyjubjubParams.code" as context;
 
 
-// pubKey generator function
+// Public Key generator function
 def main(private field privKey) -> field[2] {
 
     BabyJubJubParams context = context();
+
     field[2] G = [context.Gu, context.Gv];
 
-    bool[256] privKeyBits = unpack256(privKey); 
-    field[2] pubKey = multiply(privKeyBitsBits, G, context); 
+    bool[256] privKeyBits = unpack256(privKey);
 
-    log("public Key is {}", pubKey);
+    // Generate public Key from private Key
+    field[2] pubKey = multiply(privKeyBits, G, context); 
+
     return pubKey;
 }
