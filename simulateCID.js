@@ -1,7 +1,6 @@
 // Imports
 const crypto = require('crypto');
 const easaForm1 = require('./easeForm1.json');
-//const testJSON = require('./test.json');
 
 // ============================
 // EASA Form1 for js-sha256

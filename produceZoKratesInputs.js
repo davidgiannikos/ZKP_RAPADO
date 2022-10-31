@@ -1,6 +1,5 @@
 // Imports
 const easaForm1 = require('./easeForm1.json');
-// const testJSON = require('./test.json');
 const simulateCID = require('./simulateCID.js');
 const prepareDocument = require('./prepareDocument.js')
 
